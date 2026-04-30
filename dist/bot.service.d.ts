@@ -3,6 +3,7 @@ import { Bot, BotDocument } from './entities/bot.entity';
 export declare class BotService {
     private botModel;
     private bot;
+    private teacherId;
     private userStates;
     constructor(botModel: Model<BotDocument>);
     private sendQuestion;

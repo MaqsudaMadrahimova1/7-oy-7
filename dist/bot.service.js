@@ -24,11 +24,23 @@ const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api")
 let BotService = class BotService {
     constructor(botModel) {
         this.botModel = botModel;
+        this.teacherId = Number(process.env.TEACHER_ID);
         this.userStates = new Map();
         this.bot = new node_telegram_bot_api_1.default(process.env.BOT_TOKEN, { polling: true });
-        this.bot.onText(/\/start/, (msg) => {
+        this.bot.setMyCommands([
+            { command: '/start', description: 'Boshlash' },
+            { command: '/quiz', description: 'Matematika testini boshlash' }
+        ]);
+        this.bot.onText(/\/start/, async (msg) => {
             const chatId = msg.chat.id;
-            this.bot.sendMessage(chatId, "Matematika testiga xush kelibsiz!\nBoshlash uchun /quiz yozing");
+            const foundedStudent = await this.botModel.findOne({ chatId });
+            if (!foundedStudent) {
+                await this.botModel.create({ chatId, name: msg.from?.first_name });
+                this.bot.sendMessage(chatId, "Siz botdan ro'yxatdan o'tdingiz");
+            }
+            else {
+                this.bot.sendMessage(chatId, "Siz botdan foydalanishingiz mumkin");
+            }
         });
         this.bot.onText(/\/quiz/, (msg) => {
             const chatId = msg.chat.id;
@@ -42,22 +54,26 @@ let BotService = class BotService {
         this.bot.on('message', (msg) => {
             const chatId = msg.chat.id;
             const text = msg.text;
-            if (text.startsWith('/'))
+            if (!text || text.startsWith('/'))
                 return;
+            if (chatId !== this.teacherId) {
+                const userName = msg.from?.first_name || 'Noma\'lum';
+                this.bot.sendMessage(this.teacherId, `${text} ismi: ${userName}`);
+            }
             const state = this.userStates.get(chatId);
             if (!state)
                 return;
             const userAnswer = Number(text);
             if (userAnswer === state.currentAnswer) {
                 state.correct++;
-                this.bot.sendMessage(chatId, "✅ To‘g‘ri!");
+                this.bot.sendMessage(chatId, "✅ To'g'ri!");
             }
             else {
-                this.bot.sendMessage(chatId, `❌ Noto‘g‘ri! To‘g‘ri javob: ${state.currentAnswer}`);
+                this.bot.sendMessage(chatId, `❌ Noto'g'ri! To'g'ri javob: ${state.currentAnswer}`);
             }
             state.step++;
             if (state.step >= 10) {
-                this.bot.sendMessage(chatId, `🎯 Test tugadi!\n\nTo‘g‘ri javoblar: ${state.correct} / 10\n\nYana boshlash uchun /quiz`);
+                this.bot.sendMessage(chatId, `🎯 Test tugadi!\n\nTo'g'ri javoblar: ${state.correct} / 10\n\nYana boshlash uchun /quiz`);
                 this.userStates.delete(chatId);
             }
             else {
