@@ -7,6 +7,6 @@ export class BotController {
 
   @Get()
   getHello(): string {
-    return this.botService;
+    return "Bot ishlayapti 🚀";
   }
 }
